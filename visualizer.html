@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ℓ∞ Rounding Scheme 3D Partition [-2, 2]³</title>
+    
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Three.js and OrbitControls -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        #ui-panel {
+            width: 380px;
+            min-width: 380px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            z-index: 20;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #60a5fa;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+            transition: transform 0.1s, background-color 0.15s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #93c5fd;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            cursor: pointer;
+        }
+
+        .color-badge {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .code-font {
+            font-family: "JetBrains Mono", monospace;
+        }
+
+        #loading {
+            position: absolute;
+            inset: 0;
+            background: #0b0f19;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            transition: opacity 0.4s ease;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.08);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="flex flex-col items-center gap-4">
+            <div class="spinner"></div>
+            <div class="text-slate-300 font-medium tracking-wide text-sm">Generating 3D Partitions in [-2, 2]³...</div>
+            <div class="text-slate-500 text-xs code-font">1,728 Exact Cells • d = 3</div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <!-- Floating Navigation & View Controls -->
+        <div class="absolute top-4 left-4 flex flex-col gap-2 z-10 pointer-events-auto">
+            <div class="bg-slate-900/85 backdrop-blur-md border border-slate-700/60 p-2.5 rounded-xl shadow-lg flex items-center gap-3 text-xs text-slate-300">
+                <span class="flex items-center gap-1.5"><i class="fas fa-rotate text-blue-400"></i> Left-drag: Rotate</span>
+                <span class="text-slate-600">|</span>
+                <span class="flex items-center gap-1.5"><i class="fas fa-arrows-up-down-left-right text-green-400"></i> Right-drag: Pan</span>
+                <span class="text-slate-600">|</span>
+                <span class="flex items-center gap-1.5"><i class="fas fa-magnifying-glass text-amber-400"></i> Scroll: Zoom</span>
+            </div>
+
+            <div class="flex gap-1.5">
+                <button id="view-reset" class="px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 text-xs transition flex items-center gap-1.5" title="Reset View">
+                    <i class="fas fa-camera"></i> Reset
+                </button>
+                <button id="view-isometric" class="px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 text-xs transition flex items-center gap-1.5" title="Isometric View">
+                    <i class="fas fa-cube"></i> Iso
+                </button>
+                <button id="view-top" class="px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 text-xs transition flex items-center gap-1.5" title="Top View">
+                    <i class="fas fa-arrow-down"></i> Top (XY)
+                </button>
+                <button id="view-front" class="px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 text-xs transition flex items-center gap-1.5" title="Front View">
+                    <i class="fas fa-arrow-right"></i> Front (XZ)
+                </button>
+                <button id="toggle-autorotate" class="px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 text-xs transition flex items-center gap-1.5" title="Toggle Auto-Rotation">
+                    <i class="fas fa-sync-alt"></i> Auto-Spin
+                </button>
+                <button id="btn-screenshot" class="px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 text-xs transition flex items-center gap-1.5" title="Capture High-Res Image">
+                    <i class="fas fa-camera-retro text-indigo-400"></i> Snap
+                </button>
+            </div>
+        </div>
+
+        <div class="absolute bottom-4 left-4 bg-slate-900/85 backdrop-blur-md border border-slate-700/60 px-3 py-2 rounded-xl text-xs text-slate-300 z-10 flex items-center gap-4">
+            <div>
+                <span class="text-slate-400 font-medium">Domain:</span>
+                <span class="code-font text-blue-400 font-semibold ml-1">[-2, 2]³</span>
+                <span class="text-slate-500 ml-1 text-[11px]">(Span = 4)</span>
+            </div>
+            <div class="h-3 w-px bg-slate-700"></div>
+            <div>
+                <span class="text-slate-400 font-medium">Shift Vector:</span>
+                <span class="code-font text-emerald-400 font-semibold ml-1">a/3 · 1</span>
+            </div>
+            <div class="h-3 w-px bg-slate-700"></div>
+            <div>
+                <span class="text-slate-400 font-medium">Total Subcubes:</span>
+                <span class="code-font text-purple-400 font-semibold ml-1">1,728 (12³)</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="ui-panel">
+        <header class="p-4 pb-3 border-b border-slate-800 bg-slate-900/70">
+            <div class="flex items-center justify-between">
+                <h1 class="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 flex items-center gap-2">
+                    <i class="fas fa-shapes text-blue-400 text-sm"></i>
+                    ℓ∞ Rounding Scheme
+                </h1>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 code-font">d = 3</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1 leading-snug">
+                Partitioning <span class="code-font text-slate-200 font-semibold">[-2, 2]³</span> by minimizing <span class="code-font text-slate-200">Φ_a(x) = Σ {x_i - a/3}</span>.
+            </p>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div class="flex bg-slate-800/80 p-1 rounded-lg border border-slate-700/60 text-xs">
+                <button id="tab-btn-partition" class="flex-1 py-1.5 rounded-md font-medium text-center bg-blue-600 text-white shadow transition">Partitions</button>
+                <button id="tab-btn-slicing" class="flex-1 py-1.5 rounded-md font-medium text-center text-slate-400 hover:text-slate-200 transition">Slicing & View</button>
+                <button id="tab-btn-probe" class="flex-1 py-1.5 rounded-md font-medium text-center text-slate-400 hover:text-slate-200 transition">Live Probe</button>
+            </div>
+
+            <!-- SECTION 1: Partitions & Colors -->
+            <div id="section-partition" class="flex flex-col gap-4">
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">Partition Classes</span>
+                        <span class="text-[11px] text-slate-400">Volume Ratio</span>
+                    </div>
+
+                    <!-- a = 0 (Blue) -->
+                    <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-lg border border-blue-900/40 hover:border-blue-700/50 transition">
+                        <label class="checkbox-container text-xs text-slate-200">
+                            <input type="checkbox" id="toggle-a0" checked class="w-4 h-4 accent-blue-500 rounded bg-slate-800 border-slate-600">
+                            <span class="color-badge bg-blue-600">0</span>
+                            <span class="font-medium">a = 0 (Standard ℤ³)</span>
+                        </label>
+                        <div class="text-right">
+                            <span class="code-font text-xs text-blue-400 font-semibold">16/27</span>
+                            <span class="text-[10px] text-slate-400 block">(59.3%)</span>
+                        </div>
+                    </div>
+
+                    <!-- a = 1 (Green) -->
+                    <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-lg border border-green-900/40 hover:border-green-700/50 transition">
+                        <label class="checkbox-container text-xs text-slate-200">
+                            <input type="checkbox" id="toggle-a1" checked class="w-4 h-4 accent-green-500 rounded bg-slate-800 border-slate-600">
+                            <span class="color-badge bg-emerald-600">1</span>
+                            <span class="font-medium">a = 1 (Shift +1/3 1)</span>
+                        </label>
+                        <div class="text-right">
+                            <span class="code-font text-xs text-emerald-400 font-semibold">7/27</span>
+                            <span class="text-[10px] text-slate-400 block">(25.9%)</span>
+                        </div>
+                    </div>
+
+                    <!-- a = 2 (Red) -->
+                    <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-lg border border-red-900/40 hover:border-red-700/50 transition">
+                        <label class="checkbox-container text-xs text-slate-200">
+                            <input type="checkbox" id="toggle-a2" checked class="w-4 h-4 accent-red-500 rounded bg-slate-800 border-slate-600">
+                            <span class="color-badge bg-red-600">2</span>
+                            <span class="font-medium">a = 2 (Shift +2/3 1)</span>
+                        </label>
+                        <div class="text-right">
+                            <span class="code-font text-xs text-red-400 font-semibold">4/27</span>
+                            <span class="text-[10px] text-slate-400 block">(14.8%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cell Isolation & Prototype Shapes -->
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">Cell Isolation Mode</span>
+                        <i class="fas fa-puzzle-piece text-slate-400 text-xs"></i>
+                    </div>
+                    
+                    <select id="select-isolation" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="all">Show Full Partition [-2, 2]³ (All Cells)</option>
+                        <option value="unit">Focus on Unit Cube [0, 1]³</option>
+                        <option value="proto0">Isolate a=0 Prototype Cell (16 subcubes)</option>
+                        <option value="proto1">Isolate a=1 Prototype Cell (7 subcubes)</option>
+                        <option value="proto2">Isolate a=2 Prototype Cell (4 subcubes)</option>
+                        <option value="triad">Isolate Interlocking Triad at Origin</option>
+                    </select>
+
+                    <div id="isolation-info" class="text-[11px] text-slate-400 leading-relaxed bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                        Viewing the full periodic tiling of 3D space in [-2, 2]³.
+                    </div>
+                </div>
+
+                <!-- Exploded View & Gap -->
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-3">
+                    <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center justify-between">
+                        <span>Cell Geometry & Separation</span>
+                        <button id="reset-geometry" class="text-[10px] text-blue-400 hover:text-blue-300">Reset</button>
+                    </span>
+
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Exploded View (Cell Spacing)</span>
+                            <span id="val-explode" class="code-font text-blue-400 font-medium">0%</span>
+                        </div>
+                        <input type="range" id="slider-explode" min="0" max="1" step="0.01" value="0">
+                        <p class="text-[10px] text-slate-500 mt-0.5">Expands cells outward from their lattice anchors to reveal interlocking 3D shapes.</p>
+                    </div>
+
+                    <div class="flex flex-col gap-1 mt-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Subcube Border Slit (Block Gap)</span>
+                            <span id="val-gap" class="code-font text-blue-400 font-medium">0.05</span>
+                        </div>
+                        <input type="range" id="slider-gap" min="0" max="0.15" step="0.01" value="0.05">
+                    </div>
+
+                    <div class="flex flex-col gap-1 mt-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Cell Opacity</span>
+                            <span id="val-opacity" class="code-font text-blue-400 font-medium">1.00</span>
+                        </div>
+                        <input type="range" id="slider-opacity" min="0.1" max="1" step="0.05" value="1.0">
+                    </div>
+                </div>
+
+                <!-- Shading Mode -->
+                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-200 block">Differentiate Individual Cells</span>
+                        <span class="text-[10px] text-slate-400">Subtle luminance variation per lattice anchor</span>
+                    </div>
+                    <input type="checkbox" id="toggle-shading" checked class="w-4 h-4 accent-blue-500 rounded bg-slate-800 border-slate-600">
+                </div>
+            </div>
+
+            <!-- SECTION 2: Slicing & Views -->
+            <div id="section-slicing" class="flex flex-col gap-4 hidden">
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">3D Coordinate Slicing</span>
+                        <button id="reset-slices" class="text-[10px] text-blue-400 hover:text-blue-300 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-800/50">Reset Slices</button>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> X-Axis Cutoff</span>
+                            <span id="val-slice-x" class="code-font text-slate-200 font-medium">2.00</span>
+                        </div>
+                        <input type="range" id="slice-x" min="-2.0" max="2.0" step="0.05" value="2.0">
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-400"></span> Y-Axis Cutoff</span>
+                            <span id="val-slice-y" class="code-font text-slate-200 font-medium">2.00</span>
+                        </div>
+                        <input type="range" id="slice-y" min="-2.0" max="2.0" step="0.05" value="2.0">
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400"></span> Z-Axis Cutoff</span>
+                            <span id="val-slice-z" class="code-font text-slate-200 font-medium">2.00</span>
+                        </div>
+                        <input type="range" id="slice-z" min="-2.0" max="2.0" step="0.05" value="2.0">
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-2.5">
+                    <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">Reference Overlays</span>
+
+                    <label class="checkbox-container text-xs text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="toggle-lattice-points" checked class="w-4 h-4 accent-blue-500 rounded bg-slate-800 border-slate-600">
+                        <span>Show Lattice Anchor Spheres (<span class="code-font text-slate-400">y</span>)</span>
+                    </label>
+
+                    <label class="checkbox-container text-xs text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="toggle-unit-cube" checked class="w-4 h-4 accent-amber-500 rounded bg-slate-800 border-slate-600">
+                        <span>Highlight Unit Cube <span class="code-font text-amber-300">[0, 1]³</span> Box</span>
+                    </label>
+
+                    <label class="checkbox-container text-xs text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="toggle-bounding-box" checked class="w-4 h-4 accent-slate-400 rounded bg-slate-800 border-slate-600">
+                        <span>Show Outer Box <span class="code-font text-slate-400">[-2, 2]³</span></span>
+                    </label>
+
+                    <label class="checkbox-container text-xs text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="toggle-axes" checked class="w-4 h-4 accent-slate-400 rounded bg-slate-800 border-slate-600">
+                        <span>Show Coordinate Axes & Ticks</span>
+                    </label>
+                </div>
+
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">2D Cross-Section (XY plane)</span>
+                        <span id="label-2d-z" class="text-[11px] code-font text-purple-400 font-semibold">z = 0.00</span>
+                    </div>
+                    <canvas id="canvas-2d" width="330" height="200" class="w-full h-44 rounded-lg bg-slate-950 border border-slate-800"></canvas>
+                    <p class="text-[10px] text-slate-400">Shows the 2D cross-section at the current Z-cutoff value.</p>
+                </div>
+            </div>
+
+            <!-- SECTION 3: Live Query Probe -->
+            <div id="section-probe" class="flex flex-col gap-4 hidden">
+                <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">Test Point Probe x</span>
+                        <button id="random-probe" class="text-[10px] text-blue-400 hover:text-blue-300 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-800/50 flex items-center gap-1">
+                            <i class="fas fa-dice"></i> Randomize
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-400">
+                        Move the query point <span class="code-font text-amber-300 font-medium">x</span> in [-2, 2]³ to watch Algorithm 1 compute the optimal shift <span class="code-font text-blue-300">A(x)</span> and round to <span class="code-font text-emerald-300">y</span> in real time.
+                    </p>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-[10px] text-slate-400 block mb-1">x₁ (X)</label>
+                            <input type="number" id="probe-x" min="-2" max="2" step="0.05" value="0.45" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs code-font text-slate-200 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 block mb-1">x₂ (Y)</label>
+                            <input type="number" id="probe-y" min="-2" max="2" step="0.05" value="0.75" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs code-font text-slate-200 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 block mb-1">x₃ (Z)</label>
+                            <input type="number" id="probe-z" min="-2" max="2" step="0.05" value="0.20" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs code-font text-slate-200 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 flex flex-col gap-2.5">
+                        <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Step 1: Compute Φ_a(x)</span>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Φ₀(x) (a=0)</span>
+                                <span id="probe-phi0" class="code-font text-blue-400 font-semibold">--</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div id="bar-phi0" class="bg-blue-500 h-1.5 rounded-full transition-all duration-150" style="width: 50%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Φ₁(x) (a=1)</span>
+                                <span id="probe-phi1" class="code-font text-emerald-400 font-semibold">--</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div id="bar-phi1" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-150" style="width: 50%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Φ₂(x) (a=2)</span>
+                                <span id="probe-phi2" class="code-font text-red-400 font-semibold">--</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div id="bar-phi2" class="bg-red-500 h-1.5 rounded-full transition-all duration-150" style="width: 50%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 flex flex-col gap-2">
+                        <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Step 2: Optimal Shift A(x)</span>
+                        <div class="flex items-center gap-2">
+                            <span id="probe-winning-badge" class="px-2.5 py-1 rounded text-xs font-bold text-white bg-blue-600">a = 0</span>
+                            <span id="probe-tie-break" class="text-[10px] text-slate-400">Strict Minimum</span>
+                        </div>
+
+                        <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mt-1">Step 3: Rounded Lattice Point y</span>
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800/80 code-font text-xs text-emerald-300 flex justify-between items-center">
+                            <span>y = (<span id="probe-y-coords">0.00, 0.00, 0.00</span>)</span>
+                            <span id="probe-dist" class="text-[10px] text-slate-400">‖x-y‖_∞: 0.00</span>
+                        </div>
+                    </div>
+
+                    <label class="checkbox-container text-xs text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="toggle-probe-arrow" checked class="w-4 h-4 accent-amber-500 rounded bg-slate-800 border-slate-600">
+                        <span>Draw Vector from <span class="code-font text-amber-300">x</span> to <span class="code-font text-emerald-300">y</span> in 3D</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <footer class="p-3 border-t border-slate-800/80 bg-slate-900/80 text-[11px] text-slate-400">
+            <div class="flex items-center justify-between mb-1">
+                <span class="font-semibold text-slate-300">Algorithm 1 Summary</span>
+                <span class="text-[10px] text-slate-500">d = 3</span>
+            </div>
+            <p class="leading-tight text-slate-500 text-[10px]">
+                <span class="code-font text-slate-300 font-medium">y_i = A(x)/3 + ⌊x_i - A(x)/3⌋</span><br>
+                Tie-break: Smallest <span class="code-font text-slate-400">a</span> selected upon equal <span class="code-font text-slate-400">Φ_a(x)</span>.
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        const d = 3;
+        const DOMAIN_MIN = -2.0;
+        const DOMAIN_MAX = 2.0;
+        const SPAN = DOMAIN_MAX - DOMAIN_MIN;
+        
+        const N_INTERVALS = 12;
+        const BLOCK_WIDTH = 1.0 / 3.0;
+        const TOTAL_BLOCKS = N_INTERVALS * N_INTERVALS * N_INTERVALS;
+
+        const color0 = new THREE.Color(0x2563eb); // Blue
+        const color1 = new THREE.Color(0x16a34a); // Green
+        const color2 = new THREE.Color(0xdc2626); // Red
+        const palette = [color0, color1, color2];
+
+        const state = {
+            show0: true,
+            show1: true,
+            show2: true,
+            isolation: "all",
+            explode: 0.0,
+            gap: 0.05,
+            opacity: 1.0,
+            distinctShading: true,
+            sliceX: 2.0,
+            sliceY: 2.0,
+            sliceZ: 2.0,
+            showLatticePoints: true,
+            showUnitCube: true,
+            showBoundingBox: true,
+            showAxes: true,
+            showProbeArrow: true,
+            probe: { x: 0.45, y: 0.75, z: 0.20 },
+            autoRotate: false
+        };
+
+        function frac(z) {
+            return z - Math.floor(z);
+        }
+
+        function evaluateAlgorithm1(x, y, z) {
+            const coords = [x, y, z];
+            let minPhi = Infinity;
+            let bestA = 0;
+            const phis = [];
+
+            for (let a = 0; a < d; a++) {
+                const shift = a / d;
+                let phi = 0;
+                for (let i = 0; i < d; i++) {
+                    phi += frac(coords[i] - shift);
+                }
+                phis.push(phi);
+
+                if (phi < minPhi - 1e-7) {
+                    minPhi = phi;
+                    bestA = a;
+                }
+            }
+
+            const rounded = coords.map(c => (bestA / d) + Math.floor(c - bestA / d));
+            return {
+                a: bestA,
+                phis: phis,
+                minPhi: minPhi,
+                y: rounded
+            };
+        }
+
+        const container = document.getElementById("canvas-container");
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b0f19);
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(5.5, 4.5, 6.2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.localClippingEnabled = true;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.update();
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambientLight);
+
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.75);
+        dirLight1.position.set(6, 10, 8);
+        scene.add(dirLight1);
+
+        const dirLight2 = new THREE.DirectionalLight(0x93c5fd, 0.4);
+        dirLight2.position.set(-6, -4, -6);
+        scene.add(dirLight2);
+
+        const clipPlaneX = new THREE.Plane(new THREE.Vector3(-1, 0, 0), state.sliceX);
+        const clipPlaneY = new THREE.Plane(new THREE.Vector3(0, -1, 0), state.sliceY);
+        const clipPlaneZ = new THREE.Plane(new THREE.Vector3(0, 0, -1), state.sliceZ);
+        const clippingPlanes = [clipPlaneX, clipPlaneY, clipPlaneZ];
+
+        const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+
+        // Dedicated vibrant materials for each partition class
+        // Guarantees rich colors even if instance vertex colors are unsupported
+        const mat0 = new THREE.MeshPhongMaterial({
+            color: 0x2563eb, // Vibrant Blue
+            clippingPlanes: clippingPlanes,
+            clipIntersection: false,
+            shininess: 55,
+            specular: 0x3b82f6,
+            transparent: true,
+            opacity: 1.0
+        });
+
+        const mat1 = new THREE.MeshPhongMaterial({
+            color: 0x16a34a, // Vibrant Green
+            clippingPlanes: clippingPlanes,
+            clipIntersection: false,
+            shininess: 55,
+            specular: 0x22c55e,
+            transparent: true,
+            opacity: 1.0
+        });
+
+        const mat2 = new THREE.MeshPhongMaterial({
+            color: 0xdc2626, // Vibrant Red
+            clippingPlanes: clippingPlanes,
+            clipIntersection: false,
+            shininess: 55,
+            specular: 0xef4444,
+            transparent: true,
+            opacity: 1.0
+        });
+
+        const COUNT_A0 = 1024;
+        const COUNT_A1 = 448;
+        const COUNT_A2 = 256;
+
+        const mesh0 = new THREE.InstancedMesh(unitBoxGeo, mat0, COUNT_A0);
+        const mesh1 = new THREE.InstancedMesh(unitBoxGeo, mat1, COUNT_A1);
+        const mesh2 = new THREE.InstancedMesh(unitBoxGeo, mat2, COUNT_A2);
+
+        // Pre-allocate instanceColor attributes BEFORE first render so WebGL compiles with instancingColor
+        mesh0.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT_A0 * 3), 3);
+        mesh1.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT_A1 * 3), 3);
+        mesh2.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(COUNT_A2 * 3), 3);
+
+        mesh0.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        mesh1.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        mesh2.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+        scene.add(mesh0);
+        scene.add(mesh1);
+        scene.add(mesh2);
+
+        const meshes = [mesh0, mesh1, mesh2];
+        const materials = [mat0, mat1, mat2];
+        const blockGroups = [[], [], []];
+
+        const blockData = [];
+        const dummy = new THREE.Object3D();
+
+        let idx = 0;
+        for (let i = 0; i < N_INTERVALS; i++) {
+            const nX = -6 + i;
+            const xCenter = (nX + 0.5) / 3.0;
+
+            for (let j = 0; j < N_INTERVALS; j++) {
+                const nY = -6 + j;
+                const yCenter = (nY + 0.5) / 3.0;
+
+                for (let k = 0; k < N_INTERVALS; k++) {
+                    const nZ = -6 + k;
+                    const zCenter = (nZ + 0.5) / 3.0;
+
+                    const res = evaluateAlgorithm1(xCenter, yCenter, zCenter);
+
+                    const cellKey = `${res.a}_${res.y.map(v => v.toFixed(2)).join(",")}`;
+                    let hash = 0;
+                    for (let ch = 0; ch < cellKey.length; ch++) {
+                        hash = ((hash << 5) - hash) + cellKey.charCodeAt(ch);
+                        hash |= 0;
+                    }
+                    const shadeOffset = ((Math.abs(hash) % 100) / 100 - 0.5) * 0.18;
+
+                    const baseCol = palette[res.a].clone();
+                    const shadedCol = baseCol.clone();
+                    if (shadeOffset > 0) {
+                        shadedCol.lerp(new THREE.Color(0xffffff), shadeOffset);
+                    } else {
+                        shadedCol.lerp(new THREE.Color(0x000000), -shadeOffset);
+                    }
+
+                    const bObj = {
+                        id: idx,
+                        localIdx: blockGroups[res.a].length,
+                        nX, nY, nZ,
+                        xCenter, yCenter, zCenter,
+                        a: res.a,
+                        y: res.y,
+                        cellKey,
+                        baseColor: baseCol,
+                        shadedColor: shadedCol
+                    };
+                    blockData.push(bObj);
+                    blockGroups[res.a].push(bObj);
+
+                    idx++;
+                }
+            }
+        }
+
+        const outerBoxGeo = new THREE.BoxGeometry(SPAN, SPAN, SPAN);
+        const outerEdges = new THREE.EdgesGeometry(outerBoxGeo);
+        const outerBoxLines = new THREE.LineSegments(
+            outerEdges,
+            new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.6 })
+        );
+        scene.add(outerBoxLines);
+
+        const unitCubeGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+        const unitCubeEdges = new THREE.EdgesGeometry(unitCubeGeo);
+        const unitCubeLines = new THREE.LineSegments(
+            unitCubeEdges,
+            new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 2, transparent: true, opacity: 0.9 })
+        );
+        unitCubeLines.position.set(0.5, 0.5, 0.5);
+        scene.add(unitCubeLines);
+
+        const axesHelper = new THREE.AxesHelper(2.5);
+        scene.add(axesHelper);
+
+        const latticePointsGroup = new THREE.Group();
+        scene.add(latticePointsGroup);
+
+        function rebuildLatticePoints() {
+            while (latticePointsGroup.children.length > 0) {
+                latticePointsGroup.remove(latticePointsGroup.children[0]);
+            }
+
+            const sphereGeo = new THREE.SphereGeometry(0.045, 16, 16);
+
+            for (let a = 0; a < d; a++) {
+                const shift = a / d;
+                const col = palette[a];
+                const mat = new THREE.MeshPhongMaterial({
+                    color: col,
+                    emissive: col,
+                    emissiveIntensity: 0.35,
+                    clippingPlanes: clippingPlanes
+                });
+
+                for (let ix = -2; ix <= 2; ix++) {
+                    for (let iy = -2; iy <= 2; iy++) {
+                        for (let iz = -2; iz <= 2; iz++) {
+                            const x = ix + shift;
+                            const y = iy + shift;
+                            const z = iz + shift;
+
+                            if (x >= -2.05 && x <= 2.05 && y >= -2.05 && y <= 2.05 && z >= -2.05 && z <= 2.05) {
+                                const mesh = new THREE.Mesh(sphereGeo, mat);
+                                mesh.position.set(x, y, z);
+                                latticePointsGroup.add(mesh);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        rebuildLatticePoints();
+
+        const probeGroup = new THREE.Group();
+        scene.add(probeGroup);
+
+        const probeSphereGeo = new THREE.SphereGeometry(0.075, 20, 20);
+        const probeSphereMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+        const probeSphere = new THREE.Mesh(probeSphereGeo, probeSphereMat);
+        probeGroup.add(probeSphere);
+
+        const targetSphereGeo = new THREE.SphereGeometry(0.06, 20, 20);
+        const targetSphereMat = new THREE.MeshBasicMaterial({ color: 0x34d399 });
+        const targetSphere = new THREE.Mesh(targetSphereGeo, targetSphereMat);
+        probeGroup.add(targetSphere);
+
+        let probeArrow = null;
+        function updateProbeArrow(x, y) {
+            if (probeArrow) {
+                probeGroup.remove(probeArrow);
+                probeArrow = null;
+            }
+
+            if (!state.showProbeArrow) return;
+
+            const from = new THREE.Vector3(x[0], x[1], x[2]);
+            const to = new THREE.Vector3(y[0], y[1], y[2]);
+            const dir = to.clone().sub(from);
+            const len = dir.length();
+
+            if (len > 0.01) {
+                dir.normalize();
+                probeArrow = new THREE.ArrowHelper(dir, from, len, 0x10b981, 0.12, 0.08);
+                probeGroup.add(probeArrow);
+            }
+        }
+
+        function updateMeshInstances() {
+            const actualSize = BLOCK_WIDTH * (1.0 - state.gap);
+
+            // Group-level visibility
+            mesh0.visible = state.show0;
+            mesh1.visible = state.show1;
+            mesh2.visible = state.show2;
+
+            for (let a = 0; a < 3; a++) {
+                const mesh = meshes[a];
+                const mat = materials[a];
+                const blocks = blockGroups[a];
+
+                mat.opacity = state.opacity;
+                mat.transparent = state.opacity < 0.99;
+
+                for (let k = 0; k < blocks.length; k++) {
+                    const b = blocks[k];
+                    let visible = true;
+
+                    if (state.isolation !== "all") {
+                        if (state.isolation === "unit") {
+                            if (b.xCenter < 0 || b.xCenter > 1 || b.yCenter < 0 || b.yCenter > 1 || b.zCenter < 0 || b.zCenter > 1) {
+                                visible = false;
+                            }
+                        } else if (state.isolation === "proto0") {
+                            if (b.y[0] !== 0 || b.y[1] !== 0 || b.y[2] !== 0 || b.a !== 0) visible = false;
+                        } else if (state.isolation === "proto1") {
+                            const isCanonical = Math.abs(b.y[0] - 1/3) < 0.05 && Math.abs(b.y[1] - 1/3) < 0.05 && Math.abs(b.y[2] - 1/3) < 0.05;
+                            if (!isCanonical || b.a !== 1) visible = false;
+                        } else if (state.isolation === "proto2") {
+                            const isCanonical = Math.abs(b.y[0] + 1/3) < 0.05 && Math.abs(b.y[1] + 1/3) < 0.05 && Math.abs(b.y[2] + 1/3) < 0.05;
+                            if (!isCanonical || b.a !== 2) visible = false;
+                        } else if (state.isolation === "triad") {
+                            const isA0 = b.a === 0 && b.y[0] === 0 && b.y[1] === 0 && b.y[2] === 0;
+                            const isA1 = b.a === 1 && Math.abs(b.y[0] - 1/3) < 0.05 && Math.abs(b.y[1] - 1/3) < 0.05 && Math.abs(b.y[2] - 1/3) < 0.05;
+                            const isA2 = b.a === 2 && Math.abs(b.y[0] + 1/3) < 0.05 && Math.abs(b.y[1] + 1/3) < 0.05 && Math.abs(b.y[2] + 1/3) < 0.05;
+                            if (!isA0 && !isA1 && !isA2) visible = false;
+                        }
+                    }
+
+                    if (!visible) {
+                        dummy.scale.set(0, 0, 0);
+                        dummy.position.set(0, 0, 0);
+                        dummy.updateMatrix();
+                        mesh.setMatrixAt(k, dummy.matrix);
+                        continue;
+                    }
+
+                    let posX = b.xCenter;
+                    let posY = b.yCenter;
+                    let posZ = b.zCenter;
+
+                    if (state.explode > 0.001) {
+                        const explodeFactor = state.explode * 0.45;
+                        posX += b.y[0] * explodeFactor;
+                        posY += b.y[1] * explodeFactor;
+                        posZ += b.y[2] * explodeFactor;
+                    }
+
+                    dummy.position.set(posX, posY, posZ);
+                    dummy.scale.set(actualSize, actualSize, actualSize);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(k, dummy.matrix);
+
+                    const col = state.distinctShading ? b.shadedColor : b.baseColor;
+                    mesh.setColorAt(k, col);
+                }
+
+                mesh.instanceMatrix.needsUpdate = true;
+                if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+            }
+        }
+
+        const canvas2D = document.getElementById("canvas-2d");
+        const ctx2D = canvas2D.getContext("2d");
+
+        function update2DCanvas() {
+            const zCut = state.sliceZ;
+            document.getElementById("label-2d-z").innerText = `z = ${zCut.toFixed(2)}`;
+
+            const w = canvas2D.width;
+            const h = canvas2D.height;
+            ctx2D.clearRect(0, 0, w, h);
+
+            const nCols = N_INTERVALS;
+            const cellW = w / nCols;
+            const cellH = h / nCols;
+
+            for (let i = 0; i < nCols; i++) {
+                const xCenter = (-6 + i + 0.5) / 3.0;
+                for (let j = 0; j < nCols; j++) {
+                    const yCenter = (-6 + (nCols - 1 - j) + 0.5) / 3.0;
+
+                    const evalRes = evaluateAlgorithm1(xCenter, yCenter, zCut);
+                    let fill = "#2563eb";
+                    if (evalRes.a === 1) fill = "#16a34a";
+                    if (evalRes.a === 2) fill = "#dc2626";
+
+                    ctx2D.fillStyle = fill;
+                    ctx2D.fillRect(i * cellW + 0.5, j * cellH + 0.5, cellW - 1, cellH - 1);
+                }
+            }
+
+            ctx2D.strokeStyle = "rgba(255, 255, 255, 0.4)";
+            ctx2D.lineWidth = 1;
+            ctx2D.beginPath();
+            ctx2D.moveTo(w / 2, 0); ctx2D.lineTo(w / 2, h);
+            ctx2D.moveTo(0, h / 2); ctx2D.lineTo(w, h / 2);
+            ctx2D.stroke();
+
+            const probeCanvasX = ((state.probe.x - DOMAIN_MIN) / SPAN) * w;
+            const probeCanvasY = (1 - (state.probe.y - DOMAIN_MIN) / SPAN) * h;
+            ctx2D.fillStyle = "#fbbf24";
+            ctx2D.beginPath();
+            ctx2D.arc(probeCanvasX, probeCanvasY, 4, 0, Math.PI * 2);
+            ctx2D.fill();
+            ctx2D.strokeStyle = "#000000";
+            ctx2D.stroke();
+        }
+
+        function updateProbe() {
+            const { x, y, z } = state.probe;
+            const res = evaluateAlgorithm1(x, y, z);
+
+            probeSphere.position.set(x, y, z);
+            targetSphere.position.set(res.y[0], res.y[1], res.y[2]);
+            updateProbeArrow([x, y, z], res.y);
+
+            const phi0El = document.getElementById("probe-phi0");
+            const phi1El = document.getElementById("probe-phi1");
+            const phi2El = document.getElementById("probe-phi2");
+
+            phi0El.innerText = res.phis[0].toFixed(3);
+            phi1El.innerText = res.phis[1].toFixed(3);
+            phi2El.innerText = res.phis[2].toFixed(3);
+
+            document.getElementById("bar-phi0").style.width = `${Math.min(100, (res.phis[0] / 2.5) * 100)}%`;
+            document.getElementById("bar-phi1").style.width = `${Math.min(100, (res.phis[1] / 2.5) * 100)}%`;
+            document.getElementById("bar-phi2").style.width = `${Math.min(100, (res.phis[2] / 2.5) * 100)}%`;
+
+            const badge = document.getElementById("probe-winning-badge");
+            badge.innerText = `a = ${res.a}`;
+            if (res.a === 0) badge.className = "px-2.5 py-1 rounded text-xs font-bold text-white bg-blue-600";
+            if (res.a === 1) badge.className = "px-2.5 py-1 rounded text-xs font-bold text-white bg-emerald-600";
+            if (res.a === 2) badge.className = "px-2.5 py-1 rounded text-xs font-bold text-white bg-red-600";
+
+            document.getElementById("probe-y-coords").innerText = res.y.map(v => v.toFixed(2)).join(", ");
+
+            const ellInf = Math.max(...[x, y, z].map((coord, idx) => Math.abs(coord - res.y[idx])));
+            document.getElementById("probe-dist").innerText = `‖x-y‖_∞: ${ellInf.toFixed(3)}`;
+
+            update2DCanvas();
+        }
+
+        const tabBtnPartition = document.getElementById("tab-btn-partition");
+        const tabBtnSlicing = document.getElementById("tab-btn-slicing");
+        const tabBtnProbe = document.getElementById("tab-btn-probe");
+
+        const secPartition = document.getElementById("section-partition");
+        const secSlicing = document.getElementById("section-slicing");
+        const secProbe = document.getElementById("section-probe");
+
+        function selectTab(btn, sec) {
+            [tabBtnPartition, tabBtnSlicing, tabBtnProbe].forEach(b => {
+                b.className = "flex-1 py-1.5 rounded-md font-medium text-center text-slate-400 hover:text-slate-200 transition";
+            });
+            btn.className = "flex-1 py-1.5 rounded-md font-medium text-center bg-blue-600 text-white shadow transition";
+
+            [secPartition, secSlicing, secProbe].forEach(s => s.classList.add("hidden"));
+            sec.classList.remove("hidden");
+
+            if (sec === secSlicing) update2DCanvas();
+        }
+
+        tabBtnPartition.addEventListener("click", () => selectTab(tabBtnPartition, secPartition));
+        tabBtnSlicing.addEventListener("click", () => selectTab(tabBtnSlicing, secSlicing));
+        tabBtnProbe.addEventListener("click", () => selectTab(tabBtnProbe, secProbe));
+
+        document.getElementById("toggle-a0").addEventListener("change", (e) => { state.show0 = e.target.checked; updateMeshInstances(); });
+        document.getElementById("toggle-a1").addEventListener("change", (e) => { state.show1 = e.target.checked; updateMeshInstances(); });
+        document.getElementById("toggle-a2").addEventListener("change", (e) => { state.show2 = e.target.checked; updateMeshInstances(); });
+
+        const selectIsolation = document.getElementById("select-isolation");
+        const isolationInfo = document.getElementById("isolation-info");
+        selectIsolation.addEventListener("change", (e) => {
+            state.isolation = e.target.value;
+            const messages = {
+                "all": "Viewing the full periodic tiling of 3D space in [-2, 2]³ (1,728 subcubes).",
+                "unit": "Focusing on the unit cube [0, 1]³ (27 subcubes: 16 blue, 7 green, 4 red).",
+                "proto0": "Showing canonical a=0 cell at origin: 16 subcubes (volume 16/27 ≈ 59.3%).",
+                "proto1": "Showing canonical a=1 cell at (+1/3, +1/3, +1/3): 7 subcubes (volume 7/27 ≈ 25.9%).",
+                "proto2": "Showing canonical a=2 cell: 4 subcubes forming a corner tripod (volume 4/27 ≈ 14.8%).",
+                "triad": "Showing 3 interlocking canonical cells meeting at origin (16 + 7 + 4 = 27 subcubes)."
+            };
+            isolationInfo.innerText = messages[state.isolation];
+            updateMeshInstances();
+        });
+
+        const sliderExplode = document.getElementById("slider-explode");
+        sliderExplode.addEventListener("input", (e) => {
+            state.explode = parseFloat(e.target.value);
+            document.getElementById("val-explode").innerText = `${Math.round(state.explode * 100)}%`;
+            updateMeshInstances();
+        });
+
+        const sliderGap = document.getElementById("slider-gap");
+        sliderGap.addEventListener("input", (e) => {
+            state.gap = parseFloat(e.target.value);
+            document.getElementById("val-gap").innerText = state.gap.toFixed(2);
+            updateMeshInstances();
+        });
+
+        const sliderOpacity = document.getElementById("slider-opacity");
+        sliderOpacity.addEventListener("input", (e) => {
+            state.opacity = parseFloat(e.target.value);
+            document.getElementById("val-opacity").innerText = state.opacity.toFixed(2);
+            updateMeshInstances();
+        });
+
+        document.getElementById("reset-geometry").addEventListener("click", () => {
+            sliderExplode.value = 0; state.explode = 0; document.getElementById("val-explode").innerText = "0%";
+            sliderGap.value = 0.05; state.gap = 0.05; document.getElementById("val-gap").innerText = "0.05";
+            sliderOpacity.value = 1.0; state.opacity = 1.0; document.getElementById("val-opacity").innerText = "1.00";
+            updateMeshInstances();
+        });
+
+        document.getElementById("toggle-shading").addEventListener("change", (e) => {
+            state.distinctShading = e.target.checked;
+            updateMeshInstances();
+        });
+
+        const slX = document.getElementById("slice-x");
+        const slY = document.getElementById("slice-y");
+        const slZ = document.getElementById("slice-z");
+
+        slX.addEventListener("input", (e) => {
+            state.sliceX = parseFloat(e.target.value);
+            document.getElementById("val-slice-x").innerText = state.sliceX.toFixed(2);
+            clipPlaneX.constant = state.sliceX;
+        });
+
+        slY.addEventListener("input", (e) => {
+            state.sliceY = parseFloat(e.target.value);
+            document.getElementById("val-slice-y").innerText = state.sliceY.toFixed(2);
+            clipPlaneY.constant = state.sliceY;
+        });
+
+        slZ.addEventListener("input", (e) => {
+            state.sliceZ = parseFloat(e.target.value);
+            document.getElementById("val-slice-z").innerText = state.sliceZ.toFixed(2);
+            clipPlaneZ.constant = state.sliceZ;
+            update2DCanvas();
+        });
+
+        document.getElementById("reset-slices").addEventListener("click", () => {
+            slX.value = 2.0; slY.value = 2.0; slZ.value = 2.0;
+            slX.dispatchEvent(new Event("input"));
+            slY.dispatchEvent(new Event("input"));
+            slZ.dispatchEvent(new Event("input"));
+        });
+
+        document.getElementById("toggle-lattice-points").addEventListener("change", (e) => {
+            latticePointsGroup.visible = e.target.checked;
+        });
+        document.getElementById("toggle-unit-cube").addEventListener("change", (e) => {
+            unitCubeLines.visible = e.target.checked;
+        });
+        document.getElementById("toggle-bounding-box").addEventListener("change", (e) => {
+            outerBoxLines.visible = e.target.checked;
+        });
+        document.getElementById("toggle-axes").addEventListener("change", (e) => {
+            axesHelper.visible = e.target.checked;
+        });
+
+        const pX = document.getElementById("probe-x");
+        const pY = document.getElementById("probe-y");
+        const pZ = document.getElementById("probe-z");
+
+        function onProbeInputChange() {
+            state.probe.x = parseFloat(pX.value);
+            state.probe.y = parseFloat(pY.value);
+            state.probe.z = parseFloat(pZ.value);
+            updateProbe();
+        }
+
+        pX.addEventListener("input", onProbeInputChange);
+        pY.addEventListener("input", onProbeInputChange);
+        pZ.addEventListener("input", onProbeInputChange);
+
+        document.getElementById("random-probe").addEventListener("click", () => {
+            pX.value = (Math.random() * 4 - 2).toFixed(2);
+            pY.value = (Math.random() * 4 - 2).toFixed(2);
+            pZ.value = (Math.random() * 4 - 2).toFixed(2);
+            onProbeInputChange();
+        });
+
+        document.getElementById("toggle-probe-arrow").addEventListener("change", (e) => {
+            state.showProbeArrow = e.target.checked;
+            updateProbe();
+        });
+
+        document.getElementById("view-reset").addEventListener("click", () => {
+            camera.position.set(5.5, 4.5, 6.2);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        });
+        document.getElementById("view-isometric").addEventListener("click", () => {
+            camera.position.set(5.0, 5.0, 5.0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        });
+        document.getElementById("view-top").addEventListener("click", () => {
+            camera.position.set(0, 8.0, 0.001);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        });
+        document.getElementById("view-front").addEventListener("click", () => {
+            camera.position.set(0, 0, 8.0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        });
+
+        const btnAutoRotate = document.getElementById("toggle-autorotate");
+        btnAutoRotate.addEventListener("click", () => {
+            state.autoRotate = !state.autoRotate;
+            controls.autoRotate = state.autoRotate;
+            controls.autoRotateSpeed = 1.2;
+            btnAutoRotate.classList.toggle("bg-blue-600", state.autoRotate);
+            btnAutoRotate.classList.toggle("text-white", state.autoRotate);
+        });
+
+        document.getElementById("btn-screenshot").addEventListener("click", () => {
+            renderer.render(scene, camera);
+            const dataURL = renderer.domElement.toDataURL("image/png");
+            const link = document.createElement("a");
+            link.download = `linfinity_rounding_3d_domain2.png`;
+            link.href = dataURL;
+            link.click();
+        });
+
+        window.addEventListener("resize", () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+
+        // Initialize synchronously on load so materials compile with correct colors immediately
+        updateMeshInstances();
+        updateProbe();
+
+        const loader = document.getElementById("loading");
+        if (loader) {
+            loader.style.opacity = "0";
+            setTimeout(() => loader.remove(), 250);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
