@@ -1,4 +1,4 @@
-# GKKP26 artifacts
+# GKKM26 artifacts
 
 Artifacts for **[Overcoming the Randomness-Utility Trade-off in Answering Differentially Private Linear Queries](https://arxiv.org/abs/2609.02880)** by Surendra Ghentiyala, Pritish Kamath, Ravi Kumar, and Pasin Manurangsi (2026).
 
@@ -6,8 +6,8 @@ Artifacts for **[Overcoming the Randomness-Utility Trade-off in Answering Differ
 
 | Artifact | Open in your browser | Correspondence to the paper |
 | --- | --- | --- |
-| Lean proof | **[Open the interactive Lean viewer](https://live.lean-lang.org/#project=MathlibDemo&url=https%3A%2F%2Fraw.githubusercontent.com%2FsurendraGh%2FGKKP26_artifacts%2Frefs%2Fheads%2Fmain%2FProof.lean)** | The rounding and counting guarantees underlying **[Theorem 3.7](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem7)**, developed in [Lemma 3.3](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem3) through [Lemma 3.6](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem6). |
-| 3D visualizer | **[Open the interactive visualizer](https://raw.githack.com/surendraGh/GKKP26_artifacts/main/visualizer.html)** | **[Algorithm 1](https://arxiv.org/html/2609.02880v1#alg1)** in **Section 3.2**, illustrating the partition in **[Theorem 3.7](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem7)** for dimension $d=3$. |
+| Lean proof | **[Open the interactive Lean viewer](https://live.lean-lang.org/#project=MathlibDemo&url=https%3A%2F%2Fraw.githubusercontent.com%2FsurendraGh%2FGKKM26_artifacts%2Frefs%2Fheads%2Fmain%2FProof.lean)** | The rounding and counting guarantees underlying **[Theorem 3.7](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem7)**, developed in [Lemma 3.3](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem3) through [Lemma 3.6](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem6). |
+| 3D visualizer | **[Open the interactive visualizer](https://raw.githack.com/surendraGh/GKKM26_artifacts/main/visualizer.html)** | **[Algorithm 1](https://arxiv.org/html/2609.02880v1#alg1)** in **Section 3.2**, illustrating the partition in **[Theorem 3.7](https://arxiv.org/html/2609.02880v1#S3.Thmtheorem7)** for dimension $d=3$. |
 
 Theorem and algorithm numbers refer to [arXiv v1, Section 3.2: Explicit Construction for the $\ell_\infty$-norm](https://arxiv.org/html/2609.02880v1#S3.SS2).
 
@@ -22,7 +22,7 @@ The main declaration is `Rounding2.f_round_is_rounding_scheme`. For every positi
 
 These are the rounding and secludedness properties used in Theorem 3.7, with an explicit bound in place of the paper's asymptotic notation.
 
-If the direct link does not load the file, copy [the raw proof](https://raw.githubusercontent.com/surendraGh/GKKP26_artifacts/main/Proof.lean) into [Lean Web](https://live.lean-lang.org/) with the latest Mathlib project selected.
+If the direct link does not load the file, copy [the raw proof](https://raw.githubusercontent.com/surendraGh/GKKM26_artifacts/main/Proof.lean) into [Lean Web](https://live.lean-lang.org/) with the latest Mathlib project selected.
 
 ## Explore the visualizer
 
